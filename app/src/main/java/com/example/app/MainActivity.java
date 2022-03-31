@@ -5,19 +5,19 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.View;
 import android.webkit.ConsoleMessage;
 import android.webkit.JsPromptResult;
-import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.Toast;
 
+/**
+ * 业务背景：JS通知Native包名，Native判断对应app是否安装，并通知JS
+ */
 public class MainActivity extends Activity {
 
     private WebView mWebView;
-    JsPromptResult mJsPromptResult;
 
     @Override
     @SuppressLint("SetJavaScriptEnabled")
@@ -25,30 +25,25 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mWebView = findViewById(R.id.activity_main_webview);
-        findViewById(R.id.btn).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mJsPromptResult != null) {
-                    mJsPromptResult.confirm("wtf");
-                }
-            }
-        });
+        findViewById(R.id.btn).setOnClickListener(
+                v ->
+                        //native通知JS，并回调给native
+                        mWebView.evaluateJavascript("javascript:nativeCallJS('true')",
+                                value -> Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show()));
         WebSettings webSettings = mWebView.getSettings();
         webSettings.setJavaScriptEnabled(true);
         mWebView.setWebViewClient(new MyWebViewClient());
         mWebView.setWebChromeClient(new WebChromeClient() {
             @Override
-            public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result) {
-                Log.d("yue_", "message: " + message);
-                Log.d("yue_", "defaultValue: " + defaultValue);
-                Log.d("yue_", "result: " + result);
-                Log.d("yue_", "thread: " + Thread.currentThread());
-                mJsPromptResult = result;
+            public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult jsPromptResult) {
+                //JS执行prompt后
+                Log.d("yue_", "message from JS : " + message);
                 if (!TextUtils.isEmpty(message)) {
-                    result.confirm("hello world");
+                    //Native 通知 JS
+                    jsPromptResult.confirm("hello JS");
                     return true;
                 }
-                return super.onJsPrompt(view, url, message, defaultValue, result);
+                return super.onJsPrompt(view, url, message, defaultValue, jsPromptResult);
             }
 
             @Override
@@ -74,15 +69,4 @@ public class MainActivity extends Activity {
         }
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        mWebView.evaluateJavascript("javascript:alertTest()", new ValueCallback<String>() {
-            @Override
-            public void onReceiveValue(String value) {
-                Toast.makeText(MainActivity.this, value, Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
 }
